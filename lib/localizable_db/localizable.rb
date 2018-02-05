@@ -4,6 +4,20 @@ module LocalizableDb
 
     included do
 
+      def save_languages
+        if !self.locale and self.languages
+          self.class.table_name = self.class.localized_table_name
+          self.languages.each do |language_key, language_values|
+              self.locale = language_key
+              self.class.localized_attributes.each do |attribute|
+                self.send(:"#{attribute}=", language_values[attribute])
+              end
+              self.object_id = self.id
+              self.save
+          end
+          self.class.table_name = self.class.name.pluralize.dasherize.downcase
+        end
+      end
 
     end
 
@@ -13,7 +27,11 @@ module LocalizableDb
         singularized_model_name = self.name.downcase.singularize.dasherize
         class_eval %Q{
 
+          attr_accessor :languages, :locale
+
           default_scope { localized }
+
+          after_create :save_languages
 
           private
 
@@ -31,29 +49,6 @@ module LocalizableDb
         }
 
         class << self
-          def create_or_update
-          end
-          # def save(*args, &block )
-          #   binding.pry
-          #   if defined? LocalizableDb::Localizable and
-          #     self.get_locale != I18n.default_locale
-          #
-          #     aux = super(attributes, block)
-          #       if aux.errors.empty?
-          #       self.table_name = self.localized_table_name
-          #
-          #       LocalizableDb::Languages::SUPPORTED.each do |language|
-          #         if attributes[:languages][language]
-          #           super(attributes[:languages][language].merge(locale: language, object_id: aux.id ))
-          #         end
-          #       end
-          #       self.table_name = self.name.dasherize.pluralize
-          #     end
-          #   else
-          #     super(attributes, block)
-          #   end
-          # end
-
 
           def localized
             if defined? LocalizableDb::Localizable and
