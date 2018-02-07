@@ -6,42 +6,52 @@ module LocalizableDb
     class ModelGenerator < ActiveRecord::Generators::ModelGenerator
 
       include LocalizableDb::Generators::OrmHelper
+      # include ActiveRecord::Generators::MigrationGenerator
+      # include ActiveRecord::Generators::ModelGenerator
 
       source_root File.join(
         File.dirname(
           ActiveRecord::Generators::ModelGenerator
             .instance_method(:create_migration_file).source_location.first
-        ), File.expand_path('../templates', __FILE__)
+        ), "templates"
       )
 
       def create_migration_file
         return unless options[:migration] && options[:parent].nil?
-        
+
         attributes.each { |a|
           a.attr_options.delete(:index) if a.reference? && !a.has_index?
         } if options[:indexes] == false
 
-        template = "#{__FILE__}/../templates/migration_for.rb"
-        migration_name =
-          "db/migrate/create_#{table_name.singularize}_languages.rb"
+        model_template = "#{__FILE__}/../templates/create_table_migration.rb"
+        model_migration_name =
+          "db/migrate/create_#{table_name}.rb"
 
         migration_template(
-          template, migration_name, migration_version: migration_version
+          model_template, model_migration_name,
+          migration_version: migration_version
         )
       end
 
-      def generate_model
-        p "Model creation"
+      def generate_migration_for_localizable
         case behavior
         when :invoke
-          inject_into_class(
-            Rails.root.join("app", "models", "#{table_name.singularize}.rb"),
-            Object.const_get(table_name.singularize.camelize)
-          ) do
-            %Q{\tlocalize\n}
-          end
+          invoke(
+            "localizable_db:migration",
+            [
+              table_name.singularize.camelize
+            ] +
+            attributes.map { |attribute|
+              if attribute.type.eql? :string
+                "#{attribute.name}:#{attribute.type.to_s}"
+              end
+            }
+          )
         when :revoke
-          system "rails d model #{table_name.singularize.camelize}"
+          invoke(
+            "localizable_db:migration",
+            [ table_name ], behavior: :revoke
+          )
         end
       end
 
