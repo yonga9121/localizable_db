@@ -3,8 +3,8 @@ class Create<%= table_name.singularize.camelize %>Languages < ActiveRecord::Migr
   def change
     create_table :<%= table_name.singularize %>_languages do |t|
 <% migration_data.each do | key, value | -%>
-<% if key.eql? :object_id -%>
-      t.integer :object_id, index: true
+<% if key.eql? :localizable_object_id -%>
+      t.integer :localizable_object_id, index: true
 <% elsif key.eql? :locale -%>
       t.string :locale, null: false, default: "<%= LocalizableDb::Languages::DEFAULT %>"
 <% end -%>

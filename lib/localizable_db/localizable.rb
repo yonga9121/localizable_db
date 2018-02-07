@@ -60,6 +60,7 @@ module LocalizableDb
               (language and language != I18n.default_locale))
 
               language = self.get_locale unless language
+              raise "The locale :#{language} is not defined in the initialization file, please check config/initializers/localizable_db.rb to add it." if !LocalizableDb::Languages::SUPPORTED.include? language
               attrs_to_select = ""
               self.attribute_names.each do |attribute|
                 attrs_to_select += "#{self.table_name}.#{attribute}"

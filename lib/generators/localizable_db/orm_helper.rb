@@ -29,7 +29,7 @@ module LocalizableDb
 
       def migration_data
         {
-          object_id: true,
+          localizable_object_id: true,
           locale:  true
         }
       end
