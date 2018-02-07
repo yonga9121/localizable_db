@@ -1,3 +1,3 @@
 languages:
   default: 'en'
-  supported: ['en', 'es']
+  supported: ['en', 'es', 'pt', 'fr']

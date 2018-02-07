@@ -10,12 +10,12 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180202192201) do
+ActiveRecord::Schema.define(version: 20180206162211) do
 
   create_table "product_languages", force: :cascade do |t|
     t.string  "name"
     t.text    "desc"
-    t.integer "object_id"
+    t.integer "localizable_object_id"
     t.string  "locale"
   end
 
@@ -24,6 +24,20 @@ ActiveRecord::Schema.define(version: 20180202192201) do
     t.text     "desc"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "thing_languages", force: :cascade do |t|
+    t.integer "localizable_object_id"
+    t.string  "locale"
+    t.string  "name"
+  end
+
+  create_table "things", force: :cascade do |t|
+    t.integer  "product_id"
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_things_on_product_id"
   end
 
 end

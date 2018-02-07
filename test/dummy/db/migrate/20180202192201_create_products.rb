@@ -10,7 +10,7 @@ class CreateProducts < ActiveRecord::Migration[5.0]
     create_table :product_languages do |t|
       t.string :name
       t.text :desc
-      t.integer :object_id
+      t.integer :localizable_object_id
       t.string :locale
     end
 
