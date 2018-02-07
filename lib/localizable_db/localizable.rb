@@ -1,4 +1,3 @@
-require 'localizable_db/calculations/calculations'
 module LocalizableDb
   module Localizable
     extend ActiveSupport::Concern
@@ -94,7 +93,7 @@ module LocalizableDb
               end
               result
             else
-              return self::ActiveRecord_Relation.new()
+              return where(id: nil).unscope(where: :id)
             end
           end
 
@@ -114,7 +113,6 @@ module LocalizableDb
             AND   #{self.table_name}.id = #{self.localized_table_name}.localizable_object_id
             ").select(attrs_to_select)
             if block_given?
-              puts "CALLING BLOCK"
               ActiveRecord::Base._with_languages_eager_load = true
               result = yield(result).reload
               ActiveRecord::Base._with_languages_eager_load = false
