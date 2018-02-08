@@ -5,7 +5,7 @@ module LocalizableDb
       source_root File.join(File.expand_path('../templates', __FILE__))
 
       def copy_initializer_file
-        copy_file "initializer.rb", "config/initializers/localizable_db.rb"
+        copy_file "initializer.rb", "config/initializers/localizable_db_initializer.rb"
       end
 
     end

@@ -1,4 +1,4 @@
 class Thing < ApplicationRecord
-	localize
-  belongs_to :product
+	localize :name
+  belongs_to :product, class_name: "Product", foreign_key: "product_id"
 end
