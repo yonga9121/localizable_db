@@ -172,8 +172,8 @@ end
 ````
 
 ## Authors
-[yonga9121](github.com/yonga9121)
-[Nevinyrral](github.com/Nevinyrral)
+[yonga9121](https://github.com/yonga9121) |
+[Nevinyrral](http://github.com/Nevinyrral)
 
 
 ## License
