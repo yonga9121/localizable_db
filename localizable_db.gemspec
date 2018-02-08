@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.version     = LocalizableDb::VERSION
   s.authors     = ["yonga9121", "Nevinyrral"]
   s.email       = ["jorgeggayon@gmail.com", "montanor@javeriana.edu.co"]
-  s.homepage    = "https://yonga9121.github.io/localizable_db/"
+  s.homepage    = "https://github.com/yonga9121/localizable_db/"
   s.summary     = "Rails gem to localize your database"
   s.description = "If your application manage something like products or services that can be created dynamically, and you have to support multiple languages you may need to localize your database. LocalizableDb allow you to do that in a simple way."
   s.license     = "MIT"
