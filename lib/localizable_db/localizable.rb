@@ -16,13 +16,27 @@ module LocalizableDb
                 aux_object.send(:"#{attribute}=", language_values[attribute.to_sym])
               end
               aux_object.localizable_object_id = self.id
-              aux_object.save
+              not_localized_attributes = (self.attribute_names.map{|x| x.to_sym}-self.class.localized_attributes.map{|x| x.to_sym})
+              not_localized_attributes.each do |attribute|
+                aux_object.class_eval{ attr_accessor :"#{attribute}"}
+              end
+              if !aux_object.valid?
+                not_localized_attributes.each{|attribute| aux_object.errors.delete(attribute) }
+              end
+              aux_object.save(validate: false) if aux_object.errors.empty?
+              not_localized_attributes.each do |attribute|
+                aux_object.class_eval do
+                  undef :"#{attribute}"
+                  undef :"#{attribute}="
+                end
+              end
               aux_object.errors.messages.each do |err_key,err_message|
                 self.errors.add("#{language_key}_#{err_key}", err_message)
               end if aux_object.errors.any?
               aux_object
           end
           self.class.table_name = self.class.name.pluralize.dasherize.downcase
+          raise ActiveRecord::Rollback, "Languages error" if self.errors.any?
         end
       ensure
         self.class.table_name = self.class.name.pluralize.dasherize.downcase

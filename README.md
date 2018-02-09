@@ -95,6 +95,15 @@ product = Product.l(:fr).find(3)
 product.inspect
 #=> #<Product id: 3, name: "l'amour">
 ````
+Destroying
+````ruby
+Product.find(1).destroy
+# begin transaction
+# SELECT "product_languages".* FROM "product_languages" WHERE "product_languages"."localizable_object_id" = ?  [["localizable_object_id", 1]]
+# DELETE FROM "product_languages" WHERE "product_languages"."id" = ?  [["id", 1]]
+# DELETE FROM "products" WHERE "products"."id" = ?  [["id", 1]]
+# commit transaction
+````
 Eager loading support
 ````ruby
 products = Product.includes(:features).where(id: 1)
