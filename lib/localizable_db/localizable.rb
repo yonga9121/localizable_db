@@ -20,6 +20,11 @@ module LocalizableDb
               not_localized_attributes.each do |attribute|
                 aux_object.class_eval{ attr_accessor :"#{attribute}"}
               end
+              aux_object._reflections.each do |reflection_key, reflection_value|
+                if reflection_value.class == ActiveRecord::Reflection::BelongsToReflection
+                  not_localized_attributes << reflection_key.to_sym
+                end
+              end
               if !aux_object.valid?
                 not_localized_attributes.each{|attribute| aux_object.errors.delete(attribute) }
               end
