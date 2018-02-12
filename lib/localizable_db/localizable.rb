@@ -144,7 +144,8 @@ module LocalizableDb
 
           def with_languages(*with_languages)
             with_languages.flatten!
-            with_languages = LocalizableDb::Languages::SUPPORTED if with_languages.empty?
+            with_languages = with_languages - [LocalizableDb::Languages::DEFAULT] if with_languages.any?
+            with_languages = (LocalizableDb::Languages::SUPPORTED - [LocalizableDb::Languages::DEFAULT]) if with_languages.empty?
             attrs_to_select = "#{self.table_name}.*, "
             tables_to_select = "#{self.table_name}, "
             conditions_to_select = ""
@@ -154,13 +155,13 @@ module LocalizableDb
                 conditions_to_select += "#{language.to_s}_#{self.localized_table_name}.locale = '#{language.to_s}' AND "
                 conditions_to_select += "#{language.to_s}_#{self.localized_table_name}.localizable_object_id = #{self.table_name}.id "
                 attrs_to_select += ", " if localized_attribute != self.localized_attributes.last
-                conditions_to_select += "AND " if language != with_languages.last
+                conditions_to_select += "AND " if language != with_languages.last or localized_attribute != self.localized_attributes.last
               end
               tables_to_select += "#{self.localized_table_name} as #{language.to_s}_#{self.localized_table_name}"
               attrs_to_select += ", " if language != with_languages.last
               tables_to_select += ", " if language != with_languages.last
             end
-            result = unscope(:joins)
+            result = unscope(:joins).unscope(:select)
             .select(attrs_to_select)
             .from(tables_to_select)
             .where(conditions_to_select)
