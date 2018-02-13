@@ -81,9 +81,16 @@ module LocalizableDb
               self.class.where(localizable_object_id: self.id).destroy_all
               self.class.table_name = self.class.name.pluralize.dasherize
             end
-          ensure
             self.class.table_name = self.class.name.pluralize.dasherize.downcase if self.destroying_languages
             self.destroying_languages = false if self.destroying_languages
+          ensure
+          end
+          after_commit do
+            self.class.table_name = self.class.name.pluralize.dasherize.downcase
+          end
+
+          after_rollback do
+            self.class.table_name = self.class.name.pluralize.dasherize.downcase
           end
 
           def set_languages(languages = {})
