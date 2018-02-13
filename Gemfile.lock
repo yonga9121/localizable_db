@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    localizable_db (1.0.4)
+    localizable_db (1.0.7)
       rails (>= 5.0.0)
 
 GEM

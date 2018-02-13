@@ -4,6 +4,18 @@ module LocalizableDb
 
     included do
 
+      def localize(language = nil)
+        self.class.l(language).find_by_id(self.id)
+      end
+
+      alias :l :localize
+
+      def with_languages(*languages)
+        self.class.wl(languages).find_by_id(self.id)
+      end
+
+      alias :wl :with_languages
+
       def save_languages
         if !self._locale and self.languages
           self.languages.each do |language_key, language_values|

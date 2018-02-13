@@ -18,7 +18,7 @@ Product.l.where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "suerte">]>
 
 ````
-Specify the lenguage you want
+Specify the language you want
 
 ````ruby
 Product.find(1) #=> <Product id: 1, name: "luck">
@@ -26,14 +26,17 @@ Product.where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "luck">]>
 
 Product.l(:es).find(1) #=> <Product id: 1, name: "suerte">
+Product.find(1).l(:es) #=> <Product id: 1, name: "suerte">
 Product.l(:es).where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "suerte">]>
 
 Product.l(:pt).find(1) #=> <Product id: 1, name: "sortudo">
+Product.find(1).l(:pt) #=> <Product id: 1, name: "sortudo">
 Product.l(:pt).where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "sortudo">]>
 
 Product.l(:fr).find(1) #=> <Product id: 1, name: "heureux">
+Product.find(1).l(:fr) #=> <Product id: 1, name: "heureux">
 Product.l(:fr).where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "heureux">]>
 ````
