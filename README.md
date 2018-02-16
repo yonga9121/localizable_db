@@ -156,14 +156,41 @@ Then Install it!
 $ rails g localizable_db:install
 ````
 
-Configure your supported languages
+Configure your supported languages, default language and other the behavior of the gem.
 ````ruby
 # config/initializers/localizable_db_initializer_.rb
-module LocalizableDb
-  module Languages
-    DEFAULT = :en
-    SUPPORTED = [:en, :es] #=> Add your locales to this array.
-  end
+LocalizableDb.config do |config|
+	# REQUIRED
+	
+	config.supported_languages = [:en, :es, :pt, :fr]
+	config.default_language = :en
+
+	# OPTIONAL
+
+	# config.enable_i18n_integration = true
+	# enable_i18n_integration Allow you to use the eager load methods (includes, preload and eager_load)
+	# as in the examples. If you set this option to false then eager load methods will not work and
+	# you will have to call the ::l method to localize the language you want.
+
+	# config.enable_getters = true
+	# enable_getters Allow you to use the getters methods to access the localized attributes.
+
+	# config.attributes_integration = true
+	# attributes_integration overrides the attributes of the model with the localized attributes.
+	# Example:
+	# Imagine you have a Product like this one
+	# #<Product id: 1, name: "love">
+	# with this configuration
+	# Product < ApplicationRecord
+	# 	localize :name
+	# end
+	# When you retrieve the product of name love in spanish from your database, and this option is set to true
+	# it will return
+	# #<Product id: 1, name: "amor">
+	# If this option is set to false, the retrieved object will be
+	# #<Product id: 1, name: "love">
+	# an you will find the "es_name" into the #attributes hash
+
 end
 ````
 
