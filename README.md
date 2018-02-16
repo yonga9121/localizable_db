@@ -13,6 +13,10 @@ Product.where(id: 1)
 
 I18n.locale = :es
 
+Product.find(1) #=> <Product id: 1, name: "suerte">
+Product.where(id: 1)
+#=> <ActiveRecord::Relation [#<Product id: 1, name: "suerte">]>
+
 Product.l.find(1) #=> <Product id: 1, name: "suerte">
 Product.l.where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "suerte">]>
@@ -26,17 +30,14 @@ Product.where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "luck">]>
 
 Product.l(:es).find(1) #=> <Product id: 1, name: "suerte">
-Product.find(1).l(:es) #=> <Product id: 1, name: "suerte">
 Product.l(:es).where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "suerte">]>
 
 Product.l(:pt).find(1) #=> <Product id: 1, name: "sortudo">
-Product.find(1).l(:pt) #=> <Product id: 1, name: "sortudo">
 Product.l(:pt).where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "sortudo">]>
 
 Product.l(:fr).find(1) #=> <Product id: 1, name: "heureux">
-Product.find(1).l(:fr) #=> <Product id: 1, name: "heureux">
 Product.l(:fr).where(id: 1)
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "heureux">]>
 ````
@@ -45,39 +46,43 @@ Localize multiple languages
 products = Product.where(id: 1)
 products.inspect
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "luck">]>
-products = Product.wl(:es,:pt,:fr).where(id: 1)
+products = Product.l(:es,:pt,:fr).where(id: 1)
 products.inspect
 #=> <ActiveRecord::Relation [#<Product id: 1, name: "luck", es_name: "suerte", pt_name: "sortudo", fr_name: "heureux">]>
 
 products.first.name #=> luck
+products.first.get_name #=> luck
+products.first.get_name(:es) #=> suerte
+products.first.get_name(:pt) #=> sortudo
+products.first.get_name(:fr) #=> heureux
 products.first.attributes["es_name"] #=> suerte
 products.first.attributes["pt_name"] #=> sortudo
 products.first.attributes["fr_name"] #=> heureux
 ````
 Creating
 ````ruby
-Product.create(name: "something", languages: {
-	es: {name: "algo"},
-    pt: {name: "alguma cosia"},
-    fr: {name: "quelque chose"}
-})
+Product.create(name: "something", product_languages_attributes: [{
+		{name: "algo", locale: "es"},
+    {name: "alguma cosia", locale: "pt"},
+    {name: "quelque chose", locale: "fr"}
+}])
 #=> #<Product id:2, name: "something">
 ````
 Saving
 ````ruby
-Product.new(name: "love", languages: {
-	es: {name: "amor"},
-    pt: {name: "amor"},
-    fr: {name: "amour"}
-}).save
+Product.new(name: "love", product_languages_attributes: [{
+		{name: "algo", locale: "es"},
+    {name: "alguma cosia", locale: "pt"},
+    {name: "quelque chose", locale: "fr"}
+}]).save
 #=> #<Product id:3, name: "love">
 
 love = Product.last
-love.set_languages({
-	es: {name: "amor :D"},
-    pt: {name: "amor :D"},
-    fr: {name: "amouuurt"}
-})
+love.product_languages.build([
+	{name: "algo", locale: "es"},
+	{name: "alguma cosia", locale: "pt"},
+	{name: "quelque chose", locale: "fr"}
+])
 love.save
 #=> #<Product id: 3, name: "love">
 love =  Product.l(:fr).find(3)
@@ -87,11 +92,11 @@ love.inspect
 Updating
 ````ruby
 product = Product.find(3)
-product.update(name: "the love", languages: {
-	es: {name: "el amor"},
-    pt: {name: "o amor"},
-    fr: {name: "l'amour"}
-})
+product.update(name: "the love", product_languages_attributes: [{
+		{name: "algo", locale: "es"},
+    {name: "alguma cosia", locale: "pt"},
+    {name: "quelque chose", locale: "fr"}
+}])
 #=> #<Product id:3, name: "the love">
 
 product = Product.l(:fr).find(3)
@@ -113,9 +118,7 @@ products = Product.includes(:features).where(id: 1)
 products.first.features.inspect
 #=> <ActiveRecord::Relation [#<Feature id: 1, desc: "Makes people happy">]>
 
-products = Product.l(:es) do |products|
-	products.includes(:features)
-end.where(id: 1)
+products = Product.l(:es).includes.where(id: 1)
 products.first.features.inspect
 #=> <ActiveRecord::Relation [#<Feature id: 1, desc: "Hace a la gente feliz">]>
 ````
@@ -125,15 +128,18 @@ products = Product.includes(:features).where(id: 1)
 products.first.features.inspect
 #=> <ActiveRecord::Relation [#<Feature id: 1, desc: "Makes people happy">]>
 
-products = Product.wl(:es,:pt,:fr) do |products|
-	products.includes(:features)
-end.where(id: 1)
+products = Product.l(:es,:pt,:fr).includes(:features).where(id: 1)
 products.first.features.inspect
 #=> <ActiveRecord::Relation [#<Feature id: 1, desc: "Makes people happy", es_desc: "Hace a la gente feliz", pt_desc: "Faz as pessoas felizes", fr_desc: "Rend les gens heureux">]>
 ````
-#### NOTE:
-If you need to use aggregation functions or grouping stuff, use the raw model without calling the localize method (.l), otherwise a syntax error will be raised from ActiveRecord. We still working on this feature, if you want to help us, feel free to make a pull request :)
+Aggregation and grouping stuff operations work as usual
+````ruby
+Product.count
+# => 3
 
+Product.l(:es,:pt,:fr).count
+# => 3
+````
 ## Installation
 Add this line to your application's Gemfile:
 ```ruby
