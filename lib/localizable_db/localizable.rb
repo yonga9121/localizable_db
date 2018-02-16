@@ -1,231 +1,150 @@
 module LocalizableDb
   module Localizable
     extend ActiveSupport::Concern
-
     included do
-
-      def localize(language = nil)
-        self.class.l(language).find_by_id(self.id)
-      end
-
-      alias :l :localize
-
-      def with_languages(*languages)
-        self.class.wl(languages).find_by_id(self.id)
-      end
-
-      alias :wl :with_languages
-
-      def save_languages
-        if !self._locale and self.languages
-          self.languages.each do |language_key, language_values|
-              self.class.table_name = self.class.localized_table_name
-              aux_object = nil
-              aux_object = self.class.find_by(locale: language_key.to_s, localizable_object_id: self.id) if self.id
-              aux_object = self.class.new if !self.id or !aux_object
-              aux_object.locale = language_key.to_s
-              self.class.localized_attributes.each do |attribute|
-                aux_object.send(:"#{attribute}=", language_values[attribute.to_sym])
-              end
-              aux_object.localizable_object_id = self.id
-              not_localized_attributes = (self.attribute_names.map{|x| x.to_sym}-self.class.localized_attributes.map{|x| x.to_sym})
-              not_localized_attributes.each do |attribute|
-                aux_object.class_eval{ attr_accessor :"#{attribute}"}
-              end
-              aux_object._reflections.each do |reflection_key, reflection_value|
-                if reflection_value.class == ActiveRecord::Reflection::BelongsToReflection
-                  not_localized_attributes << reflection_key.to_sym
-                end
-              end
-              if !aux_object.valid?
-                not_localized_attributes.each{|attribute| aux_object.errors.delete(attribute) }
-              end
-              aux_object.save(validate: false) if aux_object.errors.empty?
-              not_localized_attributes.each do |attribute|
-                aux_object.class_eval do
-                  undef :"#{attribute}"
-                  undef :"#{attribute}="
-                end
-              end
-              aux_object.errors.messages.each do |err_key,err_message|
-                self.errors.add("#{language_key}_#{err_key}", err_message)
-              end if aux_object.errors.any?
-              aux_object
-          end
-          self.class.table_name = self.class.name.pluralize.dasherize.downcase
-          raise ActiveRecord::Rollback, "Languages error" if self.errors.any?
-        end
-      ensure
-        self.class.table_name = self.class.name.pluralize.dasherize.downcase
-      end
-
     end
 
     module ClassMethods
 
       def localize(*localizable_attributes)
-        localizable_attributes.flatten!
-        singularized_model_name = self.name.downcase.singularize.dasherize
-        class_eval %Q{
-
-          default_scope { localize_eager_load }
-          default_scope { with_languages_eager_load }
-
-          attr_accessor :languages, :_locale, :destroying_languages
-
-          after_save :save_languages
-          before_destroy do
-            if self.class.table_name != self.class.localized_table_name
-              self.destroying_languages = true
-              self.class.table_name = self.class.localized_table_name
-              self.class.where(localizable_object_id: self.id).destroy_all
-              self.class.table_name = self.class.name.pluralize.dasherize
-            end
-            self.class.table_name = self.class.name.pluralize.dasherize.downcase if self.destroying_languages
-            self.destroying_languages = false if self.destroying_languages
-          ensure
+        class_eval do
+          default_scope(if: LocalizableDb.configuration.enable_i18n_integration) do
+            localized
           end
-          after_commit do
-            self.class.table_name = self.class.name.pluralize.dasherize.downcase
+          mattr_accessor :localized_table_name
+          mattr_accessor :normalized_table_name
+          mattr_accessor :localizable_attributes
+        end
+        self.localized_table_name = "#{self.table_name.singularize}_languages"
+        self.normalized_table_name = self.table_name
+        self.localizable_attributes = localizable_attributes
+        aux_localized_table_name = self.localized_table_name
+        aux_model_name = self.name
+        self.const_set("#{self.name}Language", Class.new(ApplicationRecord) do
+            self.table_name = aux_localized_table_name
+            belongs_to aux_model_name.downcase.to_sym,
+              class_name: aux_model_name,
+              foreign_key: "localizable_object_id",
+              inverse_of: aux_localized_table_name.to_sym
+        end)
+        class_eval do
+          has_many self.localized_table_name.to_sym,
+          class_name: "#{self.name}Language",
+          foreign_key: "localizable_object_id",
+          inverse_of: aux_model_name.downcase.to_sym,
+          dependent: :destroy
+
+          accepts_nested_attributes_for self.localized_table_name.to_sym
+        end
+        if LocalizableDb.configuration.enable_getters
+          self.localizable_attributes.each do |attribute|
+            class_eval %Q{
+              def get_#{attribute}(language = LocalizableDb::Languages::DEFAULT)
+                if language == LocalizableDb::Languages::DEFAULT
+                  self.attributes["#{attribute.to_s}"]
+                else
+                  self.attributes[language.to_s + "_#{attribute.to_s}"]
+                end
+              end
+            }
           end
+        end
+        class << self
 
-          after_rollback do
-            self.class.table_name = self.class.name.pluralize.dasherize.downcase
-          end
-
-          def set_languages(languages = {})
-            self.languages = languages
-          end
-
-          private
-
-          def self.localized_table_name
-            "#{singularized_model_name}_languages".freeze
-          end
-
-          def self.localized_attributes
-            #{localizable_attributes}.map{|a| a.to_s}.freeze
-          end
-
-          def self.get_locale
+          def get_locale
             I18n.locale
           end
 
-        }
-
-        class << self
-
-          def localized(language = nil)
-            if defined? LocalizableDb::Localizable and
-              (self.get_locale != I18n.default_locale or
-              (language and language != I18n.default_locale))
-
-              language = self.get_locale unless language
-              raise "The locale :#{language} is not defined in the initialization file, please check config/initializers/localizable_db.rb to add it." if !LocalizableDb::Languages::SUPPORTED.include? language
-              attrs_to_select = ""
-              self.attribute_names.each do |attribute|
-                attrs_to_select += "#{self.table_name}.#{attribute}"
-                attrs_to_select += ", " if attribute != self.attribute_names.last
+          def localized(*languages)
+            if(defined? LocalizableDb::Localizable and
+              ((LocalizableDb.configuration.enable_i18n_integration and self.get_locale != LocalizableDb::Languages::DEFAULT) or
+              (languages.any? and (languages-[LocalizableDb::Languages::DEFAULT]).any?)))
+              languages = [self.get_locale] unless languages.any? and LocalizableDb.configuration.enable_i18n_integration
+              languages.map!{|language| language.to_sym}
+              if languages.size == 1
+                language = languages.first
+                return one_language(language)
+              else
+               languages = languages.keep_if do |language|
+                 LocalizableDb::Languages::NOT_DEFAULT.include? language
+               end
+                return multiple_languages(languages)
               end
-              self.localized_attributes.each do |a|
-                attrs_to_select += ", " if a == self.localized_attributes.first
-                attrs_to_select += "#{self.localized_table_name}.#{a} as #{a}"
-                attrs_to_select += ", " if a != self.localized_attributes.last
-              end
-              aux_select_values = joins("
-                JOIN  #{self.localized_table_name}
-                ON    locale = '#{language.to_s}'
-                AND   #{self.table_name}.id = #{self.localized_table_name}.localizable_object_id
-              ").select_values.map{|select_value| select_value.to_s }.join(' ')
-              localized_chain = (aux_select_values.scan(/#{self.localized_table_name}/).any? ? true : false)
-              result = joins("
-                JOIN  #{self.localized_table_name}
-                ON    locale = '#{language.to_s}'
-                AND   #{self.table_name}.id = #{self.localized_table_name}.localizable_object_id
-              ").select(attrs_to_select) if !localized_chain
-              result = unscope(:joins, :select).joins("
-                JOIN  #{self.localized_table_name}
-                ON    locale = '#{language.to_s}'
-                AND   #{self.table_name}.id = #{self.localized_table_name}.localizable_object_id
-              ").select(attrs_to_select) if localized_chain
-              if block_given?
-                ActiveRecord::Base._localized_eager_load = true
-                result = yield(result).reload
-                ActiveRecord::Base._localized_eager_load = false
-              end
-              result
             else
-              return where(id: nil).unscope(where: :id)
+              ActiveRecord::Relation.new(self, self.table_name,self.predicate_builder)
             end
-          ensure
-            ActiveRecord::Base._localized_eager_load = false
-          end
-
-          def with_languages(*with_languages)
-            with_languages.flatten!
-            with_languages = with_languages - [LocalizableDb::Languages::DEFAULT] if with_languages.any?
-            with_languages = (LocalizableDb::Languages::SUPPORTED - [LocalizableDb::Languages::DEFAULT]) if with_languages.empty?
-            attrs_to_select = "#{self.table_name}.*, "
-            tables_to_select = "#{self.table_name}, "
-            conditions_to_select = ""
-            with_languages.each do |language|
-              self.localized_attributes.each do |localized_attribute|
-                attrs_to_select += "#{language.to_s}_#{self.localized_table_name}.#{localized_attribute} as #{language.to_s}_#{localized_attribute}"
-                conditions_to_select += "#{language.to_s}_#{self.localized_table_name}.locale = '#{language.to_s}' AND "
-                conditions_to_select += "#{language.to_s}_#{self.localized_table_name}.localizable_object_id = #{self.table_name}.id "
-                attrs_to_select += ", " if localized_attribute != self.localized_attributes.last
-                conditions_to_select += "AND " if language != with_languages.last or localized_attribute != self.localized_attributes.last
-              end
-              tables_to_select += "#{self.localized_table_name} as #{language.to_s}_#{self.localized_table_name}"
-              attrs_to_select += ", " if language != with_languages.last
-              tables_to_select += ", " if language != with_languages.last
-            end
-            result = unscope(:joins).unscope(:select)
-            .select(attrs_to_select)
-            .from(tables_to_select)
-            .where(conditions_to_select)
-            # result = unscope(:joins).joins("
-            # JOIN  #{self.localized_table_name}
-            # ON    locale IN (#{with_languages.map{|l| '"' + l.to_s + '"' }.join(', ')})
-            # AND   #{self.table_name}.id = #{self.localized_table_name}.localizable_object_id
-            # ").select("products.*, product_languages.*")
-            if block_given?
-              ActiveRecord::Base._with_languages_eager_load = true
-              result = yield(result).reload
-              ActiveRecord::Base._with_languages_eager_load = false
-            end
-            result
-          ensure
-            ActiveRecord::Base._with_languages_eager_load = false
           end
 
           alias_method :l, :localized
-          alias_method :localized, :l
-          alias_method :wl, :with_languages
-          alias_method :with_languages, :wl
 
-          def localize_eager_load(language = nil)
-            if ActiveRecord::Base._localized_eager_load
-              l(language)
-            else
-              ActiveRecord::Relation.new(self, self.table_name,self.predicate_builder)
-            end
+          private
+
+          def one_language(language)
+            attrs_to_select = single_languege_attrs_to_select_conf(language)
+            from("#{self.localized_table_name}").joins("
+              JOIN (
+                SELECT #{self.table_name}.id, #{attrs_to_select.join(',')}
+                FROM #{self.localized_table_name}, #{self.table_name}
+                WHERE #{self.localized_table_name}.locale = '#{language.to_s}'
+                AND #{self.localized_table_name}.localizable_object_id = #{self.table_name}.id
+              ) AS #{self.table_name}
+              ON #{self.localized_table_name}.locale = '#{language.to_s}'
+              AND #{self.localized_table_name}.localizable_object_id = #{self.table_name}.id
+            ")
           end
 
-          def with_languages_eager_load(with_languages = [])
-            if ActiveRecord::Base._with_languages_eager_load
-              wl(with_languages)
-            else
-              ActiveRecord::Relation.new(self, self.table_name,self.predicate_builder)
+          def multiple_languages(languages)
+            attrs_to_select = (self.attribute_names).map do |attribute|
+              "#{self.table_name}.#{attribute.to_s}"
             end
+            tables_to_select = ""
+            conditions_to_select = ""
+            languages.each do |language|
+              attrs_to_select = attrs_to_select | self.localizable_attributes.map do |attribute|
+                "#{language.to_s}_#{self.localized_table_name}.#{attribute.to_s} as #{language.to_s}_#{attribute.to_s}"
+              end
+              tables_to_select += "," if language != languages.first
+              tables_to_select += "#{self.localized_table_name} as #{language.to_s}_#{self.localized_table_name}"
+              conditions_to_select += "#{language.to_s}_#{self.localized_table_name}.locale = '#{language.to_s}'"
+              conditions_to_select += " AND #{language.to_s}_#{self.localized_table_name}.localizable_object_id = #{self.table_name}.id"
+              conditions_to_select += " AND " if language != languages.last
+            end
+            from("#{tables_to_select}").joins("
+              JOIN (
+                SELECT #{self.table_name}.id, #{attrs_to_select.join(',')}
+                FROM #{self.table_name}, #{tables_to_select}
+                WHERE #{conditions_to_select}
+              ) AS #{self.table_name}
+              ON #{conditions_to_select}
+            ")
+          end
+
+          def single_languege_attrs_to_select_conf(language = nil)
+            if LocalizableDb.configuration.attributes_integration
+              attrs_to_select = self.attribute_names - ["id"] - self.localizable_attributes.map do |attribute|
+                attribute.to_s
+              end
+              attrs_to_select = attrs_to_select | self.localizable_attributes.map do |attribute|
+                ["#{self.localized_table_name}.#{attribute.to_s}","#{self.localized_table_name}.#{attribute.to_s} as #{language}_#{attribute}"]
+              end
+              attrs_to_select.flatten!
+            else
+              attrs_to_select = self.attribute_names - ["id"]
+              attrs_to_select = attrs_to_select.map do |attribute|
+                "#{self.table_name}.#{attribute}"
+              end | self.localizable_attributes.map do |attribute|
+                "#{self.localized_table_name}.#{attribute.to_s} as #{language}_#{attribute}"
+              end
+            end
+            attrs_to_select
           end
 
         end
-      end
 
+      end
     end
   end
 end
 
+
 ActiveRecord::Base.send(:include, LocalizableDb::Localizable)
-ActiveRecord::Base.class_eval{ mattr_accessor :_localized_eager_load, :_with_languages_eager_load}
