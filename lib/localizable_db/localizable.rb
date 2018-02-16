@@ -2,11 +2,23 @@ module LocalizableDb
   module Localizable
     extend ActiveSupport::Concern
     included do
+
+      def is_localizable?
+        self.class.is_localizable?
+      end
+
     end
 
     module ClassMethods
 
+      attr_accessor :is_localizable
+
+      def is_localizable?
+        self.is_localizable
+      end
+
       def localize(*localizable_attributes)
+        self.is_localizable = true
         class_eval do
           default_scope(if: LocalizableDb.configuration.enable_i18n_integration) do
             localized
@@ -59,7 +71,9 @@ module LocalizableDb
             if(defined? LocalizableDb::Localizable and
               ((LocalizableDb.configuration.enable_i18n_integration and self.get_locale != LocalizableDb::Languages::DEFAULT) or
               (languages.any? and (languages-[LocalizableDb::Languages::DEFAULT]).any?)))
-              languages = [self.get_locale] unless languages.any? and LocalizableDb.configuration.enable_i18n_integration
+              languages = LocalizableDb::Languages::SUPPORTED if(
+                languages.any? and languages.first == :all)
+              languages = [self.get_locale] if languages.empty? and LocalizableDb.configuration.enable_i18n_integration
               languages.map!{|language| language.to_sym}
               if languages.size == 1
                 language = languages.first
