@@ -1,5 +1,3 @@
-require './localizable_config/languages'
-
 module LocalizableDb
 
   mattr_accessor :configuration
@@ -7,7 +5,7 @@ module LocalizableDb
   def config
     @@configuration ||= LocalizableConfig.new
     yield(@@configuration) if block_given?
-    LocalizableDb::Languages.config
+    LocalizableDb::Languages.config if block_given?
     @@configuration
   end
 
@@ -28,9 +26,7 @@ module LocalizableDb
       @enable_getters = false
       @enable_i18n_integration = false
       @supported_languages = [I18n.default_locale]
-      @default_language = I18n.default_language
+      @default_language = I18n.default_locale
     end
   end
 end
-
-LocalizableDb.send(:config)
