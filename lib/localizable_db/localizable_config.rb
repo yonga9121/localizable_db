@@ -22,9 +22,9 @@ module LocalizableDb
     attr_accessor :default_language
 
     def initialize()
-      @attributes_integration = false
-      @enable_getters = false
-      @enable_i18n_integration = false
+      @attributes_integration = true
+      @enable_getters = true
+      @enable_i18n_integration = true
       @supported_languages = [I18n.default_locale]
       @default_language = I18n.default_locale
     end

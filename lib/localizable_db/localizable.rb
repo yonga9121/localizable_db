@@ -73,7 +73,7 @@ module LocalizableDb
               (languages.any? and (languages-[LocalizableDb::Languages::DEFAULT]).any?)))
               languages = LocalizableDb::Languages::SUPPORTED if(
                 languages.any? and languages.first == :all)
-              languages = [self.get_locale] unless languages.any? and LocalizableDb.configuration.enable_i18n_integration
+              languages = [self.get_locale] if languages.empty? and LocalizableDb.configuration.enable_i18n_integration
               languages.map!{|language| language.to_sym}
               if languages.size == 1
                 language = languages.first
