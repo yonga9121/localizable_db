@@ -108,7 +108,7 @@ module LocalizableDb
           end
 
           def multiple_languages(languages)
-            attrs_to_select = (self.attribute_names).map do |attribute|
+            attrs_to_select = (self.attribute_names - ["id"]).map do |attribute|
               "#{self.table_name}.#{attribute.to_s}"
             end
             tables_to_select = ""
