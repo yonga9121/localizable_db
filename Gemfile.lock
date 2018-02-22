@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    localizable_db (2.0.2)
+    localizable_db (2.0.4)
       rails (>= 5.0.0)
 
 GEM
@@ -46,6 +46,7 @@ GEM
       tzinfo (~> 1.1)
     arel (8.0.0)
     builder (3.2.3)
+    coderay (1.1.2)
     concurrent-ruby (1.0.5)
     crass (1.0.3)
     erubi (1.7.0)
@@ -65,6 +66,10 @@ GEM
     nio4r (2.2.0)
     nokogiri (1.8.2)
       mini_portile2 (~> 2.3.0)
+    pg (1.0.0)
+    pry (0.11.3)
+      coderay (~> 1.1.0)
+      method_source (~> 0.9.0)
     rack (2.0.4)
     rack-test (0.8.2)
       rack (>= 1.0, < 3)
@@ -112,6 +117,8 @@ PLATFORMS
 
 DEPENDENCIES
   localizable_db!
+  pg
+  pry
 
 BUNDLED WITH
    1.16.1

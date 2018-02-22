@@ -94,15 +94,18 @@ module LocalizableDb
 
           def one_language(language)
             attrs_to_select = single_languege_attrs_to_select_conf(language)
-            case_select = "CASE "
+            case_selects = []
             self.localizable_attributes.each do |attribute|
-                case_select += "WHEN #{self.localized_table_name}.#{attribute.to_s} IS NOT NULL "
-                case_select += "THEN #{self.table_name}.#{attribute.to_s} "
-                case_select += "ELSE #{self.table_name}.#{attribute.to_s} " if self.localizable_attributes == attribute
-                case_select += "END AS #{attribute} " if self.localizable_attributes.last == attribute
+                case_selects << "CASE "
+                index = case_selects.size - 1
+                case_selects[index] += "WHEN #{self.localized_table_name}.#{attribute.to_s} IS NOT NULL "
+                case_selects[index] += "THEN #{self.table_name}.#{attribute.to_s} "
+                case_selects[index] += "ELSE #{self.localized_table_name}.#{attribute.to_s} " 
+                case_selects[index] += "END AS #{attribute}, " if self.localizable_attributes.size != case_selects.size
+                case_selects[index] += "END AS #{attribute} " if self.localizable_attributes.size == case_selects.size
             end
             from("
-                (SELECT #{self.table_name}.id, #{attrs_to_select.join(', ')}, #{case_select}
+                (SELECT #{self.table_name}.id, #{attrs_to_select.join(', ')}, #{case_selects.join(', ')}
                     FROM #{self.table_name}
                     LEFT OUTER JOIN (
                     SELECT * FROM #{self.localized_table_name}
