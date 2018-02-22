@@ -98,8 +98,8 @@ module LocalizableDb
             self.localizable_attributes.each do |attribute|
                 case_select += "WHEN #{self.localized_table_name}.#{attribute.to_s} IS NOT NULL "
                 case_select += "THEN #{self.table_name}.#{attribute.to_s} "
-                case_select += "ELSE #{self.table_name}.#{attribute.to_s} "
-                case_select += "END AS #{attribute} "
+                case_select += "ELSE #{self.table_name}.#{attribute.to_s} " if self.localizable_attributes == attribute
+                case_select += "END AS #{attribute} " if self.localizable_attributes.last == attribute
             end
             from("
                 (SELECT #{self.table_name}.id, #{attrs_to_select.join(', ')}, #{case_select}
