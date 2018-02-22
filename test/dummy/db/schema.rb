@@ -12,28 +12,31 @@
 
 ActiveRecord::Schema.define(version: 20180207213738) do
 
-  create_table "product_languages", force: :cascade do |t|
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
+  create_table "product_languages", id: :serial, force: :cascade do |t|
     t.integer "localizable_object_id"
     t.string "locale", default: "en", null: false
     t.string "name"
     t.index ["localizable_object_id"], name: "index_product_languages_on_localizable_object_id"
   end
 
-  create_table "products", force: :cascade do |t|
+  create_table "products", id: :serial, force: :cascade do |t|
     t.string "name"
     t.string "desc"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "thing_languages", force: :cascade do |t|
+  create_table "thing_languages", id: :serial, force: :cascade do |t|
     t.integer "localizable_object_id"
     t.string "name"
     t.string "locale", default: "en", null: false
     t.index ["localizable_object_id"], name: "index_thing_languages_on_localizable_object_id"
   end
 
-  create_table "things", force: :cascade do |t|
+  create_table "things", id: :serial, force: :cascade do |t|
     t.integer "product_id"
     t.string "name"
     t.datetime "created_at", null: false
@@ -41,4 +44,5 @@ ActiveRecord::Schema.define(version: 20180207213738) do
     t.index ["product_id"], name: "index_things_on_product_id"
   end
 
+  add_foreign_key "things", "products"
 end

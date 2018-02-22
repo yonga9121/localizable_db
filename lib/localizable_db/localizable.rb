@@ -79,9 +79,8 @@ module LocalizableDb
                 language = languages.first
                 return one_language(language)
               else
-               languages = languages.keep_if do |language|
-                 LocalizableDb::Languages::NOT_DEFAULT.include? language
-               end
+                languages = languages.keep_if do |language|
+                   LocalizableDb::Languages::NOT_DEFAULT.include? language end
                 return multiple_languages(languages)
               end
             else
@@ -95,60 +94,66 @@ module LocalizableDb
 
           def one_language(language)
             attrs_to_select = single_languege_attrs_to_select_conf(language)
-            from("#{self.localized_table_name}").joins("
-              JOIN (
-                SELECT #{self.table_name}.id, #{attrs_to_select.join(',')}
-                FROM #{self.localized_table_name}, #{self.table_name}
-                WHERE #{self.localized_table_name}.locale = '#{language.to_s}'
-                AND #{self.localized_table_name}.localizable_object_id = #{self.table_name}.id
-              ) AS #{self.table_name}
-              ON #{self.localized_table_name}.locale = '#{language.to_s}'
-              AND #{self.localized_table_name}.localizable_object_id = #{self.table_name}.id
-            ")
+            case_select = "CASE "
+            self.localizable_attributes.each do |attribute|
+                case_select += "WHEN #{self.localized_table_name}.#{attribute.to_s} IS NOT NULL "
+                case_select += "THEN #{self.table_name}.#{attribute.to_s} "
+                case_select += "ELSE #{self.table_name}.#{attribute.to_s} "
+                case_select += "END AS #{attribute} "
+            end
+            from("
+                (SELECT #{self.table_name}.id, #{attrs_to_select.join(', ')}, #{case_select}
+                    FROM #{self.table_name}
+                    LEFT OUTER JOIN (
+                    SELECT * FROM #{self.localized_table_name}
+                    WHERE #{self.localized_table_name}.locale = '#{language}'
+                ) AS #{self.localized_table_name}
+                  ON #{self.localized_table_name}.locale = '#{language}'
+                ) AS #{self.table_name}
+            ").joins(" LEFT OUTER JOIN #{self.localized_table_name} ON 
+                #{self.table_name}.id IS NOT NULL")
           end
 
           def multiple_languages(languages)
-            attrs_to_select = (self.attribute_names - ["id"]).map do |attribute|
+              attrs_to_select = (self.attribute_names - ["id"] - self.localizable_attributes).map do |attribute|
               "#{self.table_name}.#{attribute.to_s}"
             end
             tables_to_select = ""
-            conditions_to_select = ""
             languages.each do |language|
               attrs_to_select = attrs_to_select | self.localizable_attributes.map do |attribute|
                 "#{language.to_s}_#{self.localized_table_name}.#{attribute.to_s} as #{language.to_s}_#{attribute.to_s}"
               end
-              tables_to_select += "," if language != languages.first
-              tables_to_select += "#{self.localized_table_name} as #{language.to_s}_#{self.localized_table_name}"
-              conditions_to_select += "#{language.to_s}_#{self.localized_table_name}.locale = '#{language.to_s}'"
-              conditions_to_select += " AND #{language.to_s}_#{self.localized_table_name}.localizable_object_id = #{self.table_name}.id"
-              conditions_to_select += " AND " if language != languages.last
+              tables_to_select += "LEFT OUTER JOIN (
+                SELECT * 
+                FROM #{self.localized_table_name}
+                WHERE #{self.localized_table_name}.locale = '#{language.to_s}'
+              ) AS #{language.to_s}_#{self.localized_table_name} 
+              ON #{language.to_s}_#{self.localized_table_name}.locale = '#{language.to_s}'"
             end
-            from("#{tables_to_select}").joins("
-              JOIN (
-                SELECT #{self.table_name}.id, #{attrs_to_select.join(',')}
-                FROM #{self.table_name}, #{tables_to_select}
-                WHERE #{conditions_to_select}
-              ) AS #{self.table_name}
-              ON #{conditions_to_select}
-            ")
+            from("
+               (SELECT #{self.table_name}.id, #{attrs_to_select.join(', ')}
+                  FROM #{self.table_name}
+                  #{tables_to_select}    
+               ) AS #{self.table_name}")
           end
 
           def single_languege_attrs_to_select_conf(language = nil)
             if LocalizableDb.configuration.attributes_integration
-              attrs_to_select = self.attribute_names - ["id"] - self.localizable_attributes.map do |attribute|
-                attribute.to_s
-              end
-              attrs_to_select = attrs_to_select | self.localizable_attributes.map do |attribute|
+                attrs_to_select = (self.attribute_names - ["id"] - self.localizable_attributes).map do |attribute|
+                    "#{self.table_name}.#{attribute.to_s}"
+                end - self.localizable_attributes.map do |attribute|
+                  "#{self.table_name}.#{attribute.to_s}"
+                end |  self.localizable_attributes.map do |attribute|
                 ["#{self.localized_table_name}.#{attribute.to_s}","#{self.localized_table_name}.#{attribute.to_s} as #{language}_#{attribute}"]
-              end
-              attrs_to_select.flatten!
+                end
+                attrs_to_select.flatten!
             else
-              attrs_to_select = self.attribute_names - ["id"]
-              attrs_to_select = attrs_to_select.map do |attribute|
-                "#{self.table_name}.#{attribute}"
-              end | self.localizable_attributes.map do |attribute|
-                "#{self.localized_table_name}.#{attribute.to_s} as #{language}_#{attribute}"
-              end
+                attrs_to_select = self.attribute_names - ["id"]
+                attrs_to_select = attrs_to_select.map do |attribute|
+                 "#{self.table_name}.#{attribute}"
+                end | self.localizable_attributes.map do |attribute|
+                 "#{self.localized_table_name}.#{attribute.to_s} as #{language}_#{attribute}"
+                end
             end
             attrs_to_select
           end
